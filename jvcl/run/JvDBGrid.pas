@@ -577,7 +577,7 @@ type
     property MultiSelect: Boolean read FMultiSelect write SetMultiSelect default False;
     property ShowGlyphs: Boolean read FShowGlyphs write SetShowGlyphs default True;
     property TitleButtons: Boolean read FTitleButtons write SetTitleButtons default False;
-    property TitleButtonAllowMove: Boolean read FTitleButtonAllowMove write FTitleButtonAllowMove default False; 
+    property TitleButtonAllowMove: Boolean read FTitleButtonAllowMove write FTitleButtonAllowMove default False;
     property OnCheckButton: TCheckTitleBtnEvent read FOnCheckButton write FOnCheckButton;
     property OnGetCellProps: TGetCellPropsEvent read FOnGetCellProps write FOnGetCellProps; { obsolete }
     property OnGetCellParams: TGetCellParamsEvent read FOnGetCellParams write FOnGetCellParams;
@@ -663,7 +663,7 @@ type
     { OnColumnResized: event triggered each time a column is resized with the mouse }
     property OnColumnResized: TJvDBColumnResizeEvent read FOnColumnResized write FOnColumnResized;
 
-    { ReadOnlyCellColor: The color of the cells that are read only => OnCanEditCell, not Field.CanModify }  
+    { ReadOnlyCellColor: The color of the cells that are read only => OnCanEditCell, not Field.CanModify }
     property ReadOnlyCellColor: TColor read FReadOnlyCellColor write FReadOnlyCellColor default clDefault;
     { OnCanEditCell: event used to control the appearance of editor and cell background }
     property OnCanEditCell: TJvDBCanEditCellEvent read FOnCanEditCell write FOnCanEditCell;
@@ -1407,7 +1407,7 @@ procedure TJvDBGrid.ColWidthsChanged;
     be triggered very often even if there was no actual change. This becomes worse
     when the assigned DataSet contains many visible fields (=>columns) and the DataChange
     event is used to update details data. }
-    
+
   procedure FixedInheritedColWidthsChanged;
   var
     I, ChangeCount: Integer;
@@ -1507,8 +1507,7 @@ begin
   FFixedCols := FixCount - IndicatorOffset;
 end;
 
-function TJvDBGrid.GetColumnLookupInfo(Column: TColumn):
-    TJvDBGridColumnLookupInfo;
+function TJvDBGrid.GetColumnLookupInfo(Column: TColumn): TJvDBGridColumnLookupInfo;
 var
   Field: TField;
 begin
@@ -1521,8 +1520,15 @@ begin
     Result.LookupDataSet := Field.LookupDataSet;
     Result.LookupKeyFields := Field.LookupKeyFields;
     Result.LookupResultField := Field.LookupResultField;
-  end else
-    FillChar(Result, SizeOf(Result), 0);
+  end
+  else
+  begin
+    Result.IsLookup := False;
+    Result.KeyFields := '';
+    Result.LookupDataSet := nil;
+    Result.LookupKeyFields := '';
+    Result.LookupResultField := '';
+  end;
 
   if Assigned(FOnGetColumnLookupInfo) then
     FOnGetColumnLookupInfo(Self, Column, Result);
@@ -1695,7 +1701,7 @@ begin
           else
           begin
             // Mantis 4231: Do not pass delete to inherited grid as it would
-            // allow deleting the row while having CanDelete set to False. 
+            // allow deleting the row while having CanDelete set to False.
             Exit;
           end;
       end;
@@ -2559,10 +2565,11 @@ begin
         FTitleArrowDown := True;
 
       if (Button = mbRight) and
-        (dgTitles in Options) and (dgIndicator in Options) and
+        (dgTitles in Options) and
         (Cell.Y = 0) then
       begin
-        if (Cell.X = 0) and FTitleArrow and Assigned(FOnTitleArrowMenuEvent) then
+        if (Cell.X = 0) and FTitleArrow and Assigned(FOnTitleArrowMenuEvent) and
+           (dgIndicator in Options) then
         begin
           FOnTitleArrowMenuEvent(Self);
           Exit;
@@ -2741,9 +2748,11 @@ begin
               end
               else
               begin
-                Clear;
                 if FClearSelection then
+                begin
+                  Clear;
                   CurrentRowSelected := True;
+                end;
               end;
             end;
           end;
@@ -2819,6 +2828,7 @@ var
   ACol: Longint;
   DoClick: Boolean;
   ALeftCol: Integer;
+  OriginalScrollInfo: TScrollInfo;
 begin
   Cell := MouseCoord(X, Y);
   if FTracking and (FPressedCol <> nil) then
@@ -2871,8 +2881,20 @@ begin
       OnColumnResized(Self, FSizingIndex + Byte(not (dgIndicator in Options)) - 1,
         ColWidths[FSizingIndex]);
   end
-  else
-    inherited MouseUp(Button, Shift, X, Y);
+  else if FCurrentControl = nil then
+  begin
+    OriginalScrollInfo.cbSize := SizeOf(OriginalScrollInfo);
+    OriginalScrollInfo.fMask := SIF_POS;
+    // Store scrollbar position
+    GetScrollInfo(Handle, SB_HORZ, OriginalScrollInfo); //
+    LockWindowUpdate(Handle);
+    try
+      inherited MouseUp(Button, Shift, X, Y);
+      Perform(WM_HSCROLL, MakeWParam(SB_THUMBPOSITION, OriginalScrollInfo.nPos), 0); //Repos
+    finally
+      LockWindowUpdate(0);
+    end;
+  end;
   DoAutoSizeColumns;
 
   { XP Theming }
@@ -3806,7 +3828,12 @@ begin
       if LookupInfo.IsLookup and LookupInfoValid(LookupInfo) then
       begin
         I := 1;
+        { Delphi 2006 and 2007 prefer the "WideString" overload and deprecated the (Ansi)String overload. }
+        {$IFDEF COMPILER10} {$WARN SYMBOL_DEPRECATED OFF} {$ENDIF COMPILER10}
+        {$IFDEF COMPILER11} {$WARN SYMBOL_DEPRECATED OFF} {$ENDIF COMPILER11}
         ReadOnlyTestField := Field.DataSet.FieldByName(ExtractFieldName(LookupInfo.KeyFields, I));
+        {$IFDEF COMPILER10} {$WARN SYMBOL_DEPRECATED ON} {$ENDIF COMPILER10}
+        {$IFDEF COMPILER11} {$WARN SYMBOL_DEPRECATED ON} {$ENDIF COMPILER11}
         { Lookup fields do not have a FieldNo. In this case CanModify returns False }
         if ReadOnlyTestField.CanModify and CanEditCell(ReadOnlyTestField) then
           Canvas.Brush.Color := NewBackgrnd
@@ -3821,7 +3848,10 @@ begin
     if I >= 0 then
     begin
       Bmp := GetGridBitmap(TGridPicture(I));
-      Canvas.FillRect(Rect);
+      if Highlight then
+        DrawThemedHighlighting(Canvas, Rect)
+      else
+        Canvas.FillRect(Rect);
       DrawBitmapTransparent(Canvas, (Rect.Left + Rect.Right + 1 - Bmp.Width) div 2,
         (Rect.Top + Rect.Bottom + 1 - Bmp.Height) div 2, Bmp, clOlive);
     end
@@ -4292,7 +4322,7 @@ begin
     ColLineWidth := Ord(dgColLines in Options) * GridLineWidth;
     AvailableWidth := ClientWidth;
     if (dgIndicator in Options) then
-      Dec(AvailableWidth, IndicatorWidth + ColLineWidth);
+      Dec(AvailableWidth, PPIScale(Self, IndicatorWidth) + ColLineWidth);
     TotalColWidth := 0;
     if FixedCols = 0 then
       BeginLayout;
@@ -4710,7 +4740,7 @@ begin
   { When resize DO NOT trigger title click event }
   if FCanResizeColumn then
     Exit;
-  
+
   FTitleColumn := Column;
   inherited TitleClick(Column);
   if AllowTitleClick then

@@ -184,6 +184,10 @@ type
   TJvDBTreeNode = class(TTreeNode)
   private
     FMasterValue: Variant;
+
+    {$IFDEF RTL360_UP}
+    class constructor Create;
+    {$ENDIF RTL360_UP}
   public
     procedure SetMasterValue(AValue: Variant);
     procedure MoveTo(Destination: TTreeNode; Mode: TNodeAttachMode); override;
@@ -303,9 +307,9 @@ uses
 const
   DnDScrollArea = 15;
   DnDInterval = 200;
-  DefaultValidMasterFields = [ftSmallInt, ftInteger, ftAutoInc, ftWord, ftFloat, ftString, ftWideString, ftBCD, ftFMTBCD];
+  DefaultValidMasterFields = [ftSmallInt, ftInteger, ftLargeInt, ftAutoInc, ftWord, ftFloat, ftString, ftWideString, ftBCD, ftFMTBCD];
   DefaultValidDetailFields = DefaultValidMasterFields;
-  DefaultValidItemFields = [ftString, ftWideString, ftMemo, ftFmtMemo, ftSmallInt, ftInteger, ftAutoInc,
+  DefaultValidItemFields = [ftString, ftWideString, ftMemo, ftFmtMemo, ftSmallInt, ftInteger, ftLargeInt, ftAutoInc,
     ftWord, ftBoolean, ftFloat, ftCurrency, ftDate, ftTime, ftDateTime, ftBCD, ftFMTBCD
   {$IFDEF COMPILER10_UP}
   , ftFixedWideChar, ftWideMemo, ftOraTimeStamp
@@ -383,6 +387,16 @@ begin
 end;
 
 //=== { TJvDBTreeNode } ======================================================
+
+{$IFDEF RTL360_UP}
+class constructor TJvDBTreeNode.Create;
+begin
+  // TTreeNodes.ReadNodeData no longer relies on its internal FClassNames (it clears it)
+  // but rahter requires that the node class is present in the list of registered classes
+  // for the indirectly called TTreeNodes.ReadNodeClass to find it.
+  RegisterClass(TJvDBTreeNode);
+end;
+{$ENDIF RTL360_UP}
 
 procedure TJvDBTreeNode.MoveTo(Destination: TTreeNode; Mode: TNodeAttachMode);
 var
@@ -1026,7 +1040,7 @@ begin
       dsEdit:
         FDataLink.DataSet.Edit;
       dsInsert:
-        FDataLink.DataSet.Insert;
+        FDataLink.DataSet.Edit;
     end;
   end;
   inherited Change(Node);

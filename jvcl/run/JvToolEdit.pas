@@ -722,6 +722,7 @@ type
     property TabStop;
     property Text;
     property Visible;
+    property OnButtonClick;
     property OnChange;
     property OnClick;
     property OnDblClick;
@@ -835,6 +836,7 @@ type
     property TabStop;
     property Text;
     property Visible;
+    property OnButtonClick;
     property OnChange;
     property OnClick;
     property OnDblClick;
@@ -1169,7 +1171,7 @@ uses
 type
   TCustomMaskEditAccessPrivate = class(TCustomEdit)
   protected
-    {$IFDEF RTL340_UP}
+    {$IFDEF RTL370_UP}
       {$MESSAGE WARN 'Check if Vcl.Mask.TCustomMaskEdit still has the exact same fields and adjust the IFDEF'}
     {$ENDIF}
     // Do not remove these fields, although they are not used.
@@ -1779,7 +1781,7 @@ begin
   FPopupAlign := epaRight;
   FBtnControl := TJvBtnWinControl.Create(Self);
   with FBtnControl do
-    ControlStyle := ControlStyle + [csReplicatable];
+    ControlStyle := ControlStyle + [csReplicatable{$IFDEF RTL150_UP}, csParentBackground{$ENDIF}];
   FBtnControl.Width := DefEditBtnWidth;
   FBtnControl.Height := 17;
   FBtnControl.Visible := True;
@@ -3124,10 +3126,16 @@ begin
 end;
 
 procedure TJvCustomComboEdit.SetShowCaret;
-const
-  CaretWidth: array [Boolean] of Integer = (1, 2);
+var
+  CaretWidth : Integer;
 begin
-  CreateCaret(Handle, 0, CaretWidth[fsBold in Font.Style], GetTextHeight);
+  if not SystemParametersInfo(SPI_GETCARETWIDTH, 0, @CaretWidth, 0) then
+  begin
+    CaretWidth := 1;
+    if fsBold in Font.Style then
+      Inc(CaretWidth);
+  end;
+  CreateCaret(Handle, 0, CaretWidth, GetTextHeight);
   ShowCaret(Handle);
 end;
 
@@ -5159,7 +5167,11 @@ begin
     ClearFileList;
   end
   else
+    {$IFDEF RTL330_UP}
+    raise EComboEditError.CreateResFmt(@SInvalidKnownFilename, [Value]);
+    {$ELSE}
     raise EComboEditError.CreateResFmt(@SInvalidFilename, [Value]);
+    {$ENDIF}
 end;
 
 function TJvFilenameEdit.GetFileName: TFileName;

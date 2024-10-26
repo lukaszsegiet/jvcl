@@ -622,6 +622,7 @@ type
     property LookupField: string read GetLookupField write SetLookupField;
     property LookupSource: TDataSource read GetLookupSource write SetLookupSource;
     property PopupOnlyLocate: Boolean read FPopupOnlyLocate write FPopupOnlyLocate default True;
+    property Align;
     property Alignment;
     property AutoSelect;
     property AutoSize;
@@ -1559,13 +1560,25 @@ end;
 
 function TJvLookupControl.Locate(const SearchField: TField;
   const AValue: string; Exact: Boolean): Boolean;
+var
+  IsDisplayField: Boolean;
+  CaseSensitive: Boolean;
 begin
   FLocate.IndexSwitch := FIndexSwitch;
   Result := False;
   try
     if not ValueIsEmpty(AValue) and (SearchField <> nil) then
     begin
-      Result := FLocate.Locate(SearchField.FieldName, AValue, Exact, not IgnoreCase, True, RightTrimmedLookup);
+      IsDisplayField := (SearchField = FDisplayField);
+      if IsDisplayField then
+        // respect lookup property
+        CaseSensitive := not IgnoreCase
+      else
+        // not display, so this is the key field, do a case-sensitive locate
+        CaseSensitive := True;
+
+      Result := FLocate.Locate(SearchField.FieldName, AValue, Exact, CaseSensitive, True, RightTrimmedLookup);
+
       if Result then
       begin
         if SearchField = FDisplayField then

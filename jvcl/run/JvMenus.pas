@@ -37,7 +37,7 @@ uses
   Windows, Messages, SysUtils, Contnrs, Graphics, Controls, Forms, Classes,
   {$IFDEF HAS_UNIT_SYSTEM_UITYPES}
   System.UITypes,
-  {$ENDIF HAS_UNIT_SYSTEM_UITYPES}  
+  {$ENDIF HAS_UNIT_SYSTEM_UITYPES}
   ExtCtrls, ImgList, Menus,
   JvWndProcHook, JVCLVer;
 
@@ -761,7 +761,7 @@ type
 
 { Utility routines }
 
-procedure SetDefaultMenuFont(AFont: TFont);
+procedure SetDefaultMenuFont(AFont: TFont); {$IFDEF SUPPORTS_DEPRECATED}deprecated{$IFDEF SUPPORTS_DEPRECATED_DETAILS}'Use Screen.MenuFont'{$ENDIF}{$ENDIF};
 function UseFlatMenubars: Boolean;
 function StripHotkeyPrefix(const Text: string): string; // MBCS
 
@@ -908,7 +908,7 @@ begin
   {$IFDEF RTL210_UP}
   NCMetrics.cbSize := TNonClientMetrics.SizeOf;
   {$ELSE}
-  NCMetrics.cbSize := SizeOf(TNonCLientMetrics);
+  NCMetrics.cbSize := SizeOf(TNonClientMetrics);
   {$ENDIF RTL210_UP}
   if SystemParametersInfo(SPI_GETNONCLIENTMETRICS, NCMetrics.cbSize, @NCMetrics, 0) then
   begin
@@ -1255,7 +1255,7 @@ begin
         SaveIndex := SaveDC(hDC);
         try
           Canvas.Handle := hDC;
-          SetDefaultMenuFont(Canvas.Font);
+          Canvas.Font := Screen.MenuFont;
           Canvas.Font.Color := clMenuText;
           Canvas.Brush.Color := clMenu;
           if mdDefault in State then
@@ -1268,12 +1268,12 @@ begin
           end;
           IntersectClipRect(Canvas.Handle, rcItem.Left, rcItem.Top, rcItem.Right, rcItem.Bottom);
           DrawItem(Item, rcItem, State);
-          Canvas.Handle := 0;
         finally
+          Canvas.Handle := 0;
           RestoreDC(hDC, SaveIndex);
         end;
       finally
-        Canvas.Free;
+        FreeAndNil(FCanvas);
       end;
     end;
   end;
@@ -1308,7 +1308,7 @@ begin
             RestoreDC(DC, SaveIndex);
           end;
         finally
-          Canvas.Free;
+          FreeAndNil(FCanvas);
         end;
       finally
         ReleaseDC(0, DC);
@@ -1713,7 +1713,7 @@ begin
     if IsOwnerDrawMenu then
       RefreshMenu(True);
 
-    // Those three lines are as close as we can get to the orignal source
+    // Those three lines are as close as we can get to the original source
     // code in the VCL. Note that for the "Items.Handle" line, it seems
     // it does nothing as it does not store the property value, but there is
     // a getter on that property and will eventually make a series of calls
@@ -1836,7 +1836,7 @@ begin
         SaveIndex := SaveDC(hDC);
         try
           Canvas.Handle := hDC;
-          SetDefaultMenuFont(Canvas.Font);
+          Canvas.Font := Screen.MenuFont;
           Canvas.Font.Color := clMenuText;
           Canvas.Brush.Color := clMenu;
           if mdDefault in State then
@@ -1849,12 +1849,12 @@ begin
           end;
           IntersectClipRect(Canvas.Handle, rcItem.Left, rcItem.Top, rcItem.Right, rcItem.Bottom);
           DrawItem(Item, rcItem, State);
-          Canvas.Handle := 0;
         finally
+          Canvas.Handle := 0;
           RestoreDC(hDC, SaveIndex);
         end;
       finally
-        Canvas.Free;
+        FreeAndNil(FCanvas);
       end;
     end;
   end;
@@ -3135,7 +3135,7 @@ begin
   if not IsPopup(FItem) then
   begin
     Canvas.Font.Color := clMenuText;
-    
+
     if (FCurrentState * [mdSelected, mdFocused, mdHotlight] = []) then
     begin
       if SystemParametersInfo(SPI_GETFLATMENU, 0, @FlatMenus, 0) and FlatMenus then

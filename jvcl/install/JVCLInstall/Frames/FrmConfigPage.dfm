@@ -72,7 +72,7 @@ object FrameConfigPage: TFrameConfigPage
         'ng all your installed'#13#10'Delphi/C++Builder versions must have the ' +
         'ThemeManager'#13#10'installed (not for Delphi 7)'#13#10#13#10'<b>For Delphi 7 th' +
         'is option is always enabled even if'#13#10'it is not enabled here.</b>'
-      Caption = '&XP Theming (not for Delphi 7)'
+      Caption = '&XP Theming (for Delphi 6 or less)'
       ParentShowHint = False
       ShowHint = True
       TabOrder = 0
@@ -387,7 +387,7 @@ object FrameConfigPage: TFrameConfigPage
     Height = 17
     Hint = 
       'Activate this option if the installer should not stop when an er' +
-      'ror occured while'#13#10'compiling the packages.'
+      'ror occurred while'#13#10'compiling the packages.'
     Caption = 'D&o not stop on errors'
     ParentShowHint = False
     ShowHint = True

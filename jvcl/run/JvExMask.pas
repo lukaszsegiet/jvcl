@@ -85,6 +85,9 @@ type
     property HintWindowClass: THintWindowClass read FHintWindowClass write FHintWindowClass;
   published
     property AboutJVCL: TJVCLAboutInfo read FAboutJVCL write FAboutJVCL stored False;
+    {$IFDEF HAS_PROPERTY_STYLEELEMENTS}	
+    property StyleElements;
+    {$ENDIF HAS_PROPERTY_STYLEELEMENTS}
   private
     FDotNetHighlighting: Boolean;
   protected
@@ -114,6 +117,7 @@ type
     property ClipboardCommands: TJvClipboardCommands read FClipboardCommands write SetClipboardCommands default [caCopy..caUndo];
   private
     FBeepOnError: Boolean;
+    FRaiseException: Boolean;
     {$IFNDEF COMPILER12_UP}
     FTextHint: string;
     procedure SetTextHint(const Value: string);
@@ -122,7 +126,9 @@ type
   protected
     procedure DoBeepOnError; dynamic;
     procedure SetBeepOnError(Value: Boolean); virtual;
+    procedure ValidateError; override;
     property BeepOnError: Boolean read FBeepOnError write SetBeepOnError default True;
+    property RaiseException: Boolean read FRaiseException write FRaiseException default True;
 
     procedure DoSetTextHint(const Value: string); {$IFDEF COMPILER12_UP}override;{$ELSE}virtual;{$ENDIF}
     procedure PaintWindow(DC: HDC); override;
@@ -173,6 +179,9 @@ type
     property HintWindowClass: THintWindowClass read FHintWindowClass write FHintWindowClass;
   published
     property AboutJVCL: TJVCLAboutInfo read FAboutJVCL write FAboutJVCL stored False;
+    {$IFDEF HAS_PROPERTY_STYLEELEMENTS}	
+    property StyleElements;
+    {$ENDIF HAS_PROPERTY_STYLEELEMENTS}
   private
     FDotNetHighlighting: Boolean;
   protected
@@ -202,6 +211,7 @@ type
     property ClipboardCommands: TJvClipboardCommands read FClipboardCommands write SetClipboardCommands default [caCopy..caUndo];
   private
     FBeepOnError: Boolean;
+    FRaiseException: Boolean;
     {$IFNDEF COMPILER12_UP}
     FTextHint: string;
     procedure SetTextHint(const Value: string);
@@ -210,6 +220,7 @@ type
   protected
     procedure DoBeepOnError; dynamic;
     procedure SetBeepOnError(Value: Boolean); virtual;
+    procedure ValidateError; override;
 
     procedure DoSetTextHint(const Value: string); {$IFDEF COMPILER12_UP}override;{$ELSE}virtual;{$ENDIF}
     procedure PaintWindow(DC: HDC); override;
@@ -224,6 +235,7 @@ type
     property TextHint: string read FTextHint write SetTextHint;
     {$ENDIF ~COMPILER12_UP}
     property BeepOnError: Boolean read FBeepOnError write SetBeepOnError default True;
+    property RaiseException: Boolean read FRaiseException write FRaiseException default True;
   end;
 
 {$IFDEF UNITVERSIONING}
@@ -238,7 +250,7 @@ const
 
 implementation
 
-uses  
+uses
   JclSysInfo;
 
 {$IFNDEF COMPILER12_UP}
@@ -259,6 +271,7 @@ begin
   FHintColor := clDefault;
   FClipboardCommands := [caCopy..caUndo];
   FBeepOnError := True;
+  FRaiseException := True;
   if UserTextHint then
     ControlState := ControlState + [csCustomPaint]; // needed for PaintWindow
 end;
@@ -585,6 +598,12 @@ begin
   FBeepOnError := Value;
 end;
 
+procedure TJvExCustomMaskEdit.ValidateError;
+begin
+  if FRaiseException then
+    inherited ValidateError;
+end;
+
 {$IFNDEF COMPILER12_UP}
 procedure TJvExCustomMaskEdit.SetTextHint(const Value: string);
 begin
@@ -669,6 +688,7 @@ begin
   FHintColor := clDefault;
   FClipboardCommands := [caCopy..caUndo];
   FBeepOnError := True;
+  FRaiseException := True;
   if UserTextHint then
     ControlState := ControlState + [csCustomPaint]; // needed for PaintWindow
 end;
@@ -993,6 +1013,12 @@ end;
 procedure TJvExMaskEdit.SetBeepOnError(Value: Boolean);
 begin
   FBeepOnError := Value;
+end;
+
+procedure TJvExMaskEdit.ValidateError;
+begin
+  if FRaiseException then
+    inherited ValidateError;
 end;
 
 {$IFNDEF COMPILER12_UP}

@@ -230,7 +230,7 @@ type
     //    property MinYear: Word read FMinYear write FMinYear;
     property NoDateShortcut: TShortcut read FNoDateShortcut write FNoDateShortcut stored IsNoDateShortcutStored;
     property NoDateText: string read FNoDateText write SetNoDateText stored IsNoDateTextStored;
-    property NoDateValue: TDateTime read FNoDateValue write SetNoDateValue stored IsNoDateValueStored; 
+    property NoDateValue: TDateTime read FNoDateValue write SetNoDateValue stored IsNoDateValueStored;
     property ShowButton default True;
     property StoreDate: Boolean read FStoreDate write FStoreDate default False;
     property StoreDateFormat: Boolean read FStoreDateFormat write FStoreDateFormat default False;
@@ -715,8 +715,8 @@ begin
   Result := ADateFormat;
   StrReplace(Result, 'dd', '00', []);
   StrReplace(Result, 'd', '99', []);
-  StrReplace(Result, 'MM', '00', []);
-  StrReplace(Result, 'M', '99', []);
+  StrReplace(Result, 'MM', '00', [rfIgnoreCase]);
+  StrReplace(Result, 'M', '99', [rfIgnoreCase]);
   StrReplace(Result, 'yyyy', '0099', []);
   StrReplace(Result, 'yy', '00', []);
   StrReplace(Result, ' ', '_', []);
@@ -750,7 +750,7 @@ end;
 
 function TJvCustomDatePickerEdit.DetermineDateSeparator(AFormat: string): Char;
 begin
-  AFormat := StrRemoveChars(Trim(AFormat), ['d', 'M', 'y']);
+  AFormat := StrRemoveChars(Trim(AFormat), ['d', 'm', 'M', 'y']);
   if AFormat <> '' then
     Result := AFormat[1]
   else
@@ -780,7 +780,8 @@ begin
       begin
         FDateError := True;
         SetFocus;
-        raise;
+        if RaiseException then
+          raise;
       end
       else
         Self.Date := NoDateValue;
@@ -1357,6 +1358,9 @@ begin
   begin
     FPopup.SetBounds(Origin.X, Origin.Y, FPopup.Width, FPopup.Height);
     FPopup.Visible := True; // overriden CM_SHOWINGCHANGED will take care of SW_SHOWNOACTIVATE
+
+    // Sometimes the popup windows is placed behind the window, so bring it to the top
+    SetWindowPos(FPopup.Handle, HWND_TOP, 0, 0, 0, 0, SWP_NOSIZE or SWP_NOMOVE or SWP_NOACTIVATE);
 
     // Emulate a LButton-Click to give the month calendar the look of being focused
     SendMessage(TJvDropCalendar(FPopup).FCal.Handle, WM_LBUTTONDOWN, MK_LBUTTON, MakeLong(Word(-1), Word(-1)));

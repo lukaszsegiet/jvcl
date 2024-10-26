@@ -26,6 +26,12 @@ copy ..\..\common\jvclbase.inc  ..\..\common\jvcld25.inc
 copy ..\..\common\jvclbase.inc  ..\..\common\jvcld25_x64.inc
 copy ..\..\common\jvclbase.inc  ..\..\common\jvcld26.inc
 copy ..\..\common\jvclbase.inc  ..\..\common\jvcld26_x64.inc
+copy ..\..\common\jvclbase.inc  ..\..\common\jvcld27.inc
+copy ..\..\common\jvclbase.inc  ..\..\common\jvcld27_x64.inc
+copy ..\..\common\jvclbase.inc  ..\..\common\jvcld28.inc
+copy ..\..\common\jvclbase.inc  ..\..\common\jvcld28_x64.inc
+copy ..\..\common\jvclbase.inc  ..\..\common\jvcld29.inc
+copy ..\..\common\jvclbase.inc  ..\..\common\jvcld29_x64.inc
 copy ..\..\common\jvclbase.inc  ..\..\common\jvcld6.inc
 copy ..\..\common\jvclbase.inc  ..\..\common\jvcld7.inc
 copy ..\..\common\jvclbase.inc  ..\..\common\jvcld9.inc

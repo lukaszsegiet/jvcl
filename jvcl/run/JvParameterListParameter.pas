@@ -118,6 +118,8 @@ type
     procedure ArrangeLabelAndWinControlOnPanelNone;
     procedure ArrangeWinControlsonPanel(iLeft, iTop: Integer; var iWidth: Integer;
         iHeight: Integer);
+    function GetBeforeParameter: TJvBaseParameter;
+    function GetAfterParameter: TJvBaseParameter;
   protected
     procedure ArrangeLabelAndWinControlOnPanel; virtual;
     procedure CreateAfterParameterControl(AParameterParent: TWinControl); virtual;
@@ -139,6 +141,8 @@ type
     procedure SetTabOrder(Value: Integer); override;
     procedure SetVisible(Value: Boolean); override;
     procedure SetWidth(Value: Integer); override;
+    property BeforeParameter: TJvBaseParameter read GetBeforeParameter;
+    property AfterParameter: TJvBaseParameter read GetAfterParameter;
     property FrameControl: TWinControl read FFrameControl;
     property LabelControl: TControl read FLabelControl;
   published
@@ -642,7 +646,7 @@ type
   end;
 
 function DSADialogsMessageDlg(const Msg: string; const DlgType: TMsgDlgType; const Buttons: TMsgDlgButtons;
-  const HelpCtx: Longint; const Center: TDlgCenterKind = dckScreen; const Timeout: Integer = 0;
+  const HelpCtx: Longint; const Center: TDlgCenterKind = dckActiveForm; const Timeout: Integer = 0;
   const DefaultButton: TMsgDlgBtn = mbDefault; const CancelButton: TMsgDlgBtn = mbDefault;
   const HelpButton: TMsgDlgBtn = mbHelp;
   const ADynControlEngine: TJvDynControlEngine = nil): TModalResult;
@@ -662,15 +666,8 @@ implementation
 uses
   JvResources, JvJVCLUtils, JclSysUtils;
 
-//=== { Support function for DPI Aware apps } ================================
-
-function PPIScale(Value: Integer): Integer;
-begin
-  Result := MulDiv(Value, Screen.PixelsPerInch, 96);
-end;
-
 function DSADialogsMessageDlg(const Msg: string; const DlgType: TMsgDlgType; const Buttons: TMsgDlgButtons;
-  const HelpCtx: Longint; const Center: TDlgCenterKind = dckScreen; const Timeout: Integer = 0;
+  const HelpCtx: Longint; const Center: TDlgCenterKind = dckActiveForm; const Timeout: Integer = 0;
   const DefaultButton: TMsgDlgBtn = mbDefault; const CancelButton: TMsgDlgBtn = mbDefault;
   const HelpButton: TMsgDlgBtn = mbHelp;
   const ADynControlEngine: TJvDynControlEngine = nil): TModalResult;
@@ -738,7 +735,6 @@ begin
     GetParameterName, Caption, Hint, Click, False, False);
   Button.Action := Action;
   SetWinControl (Button);
-  WinControl.Height := PPIScale(WinControl.Height);
   if Height > 0 then
     WinControl.Height := Height;
   if Width > 0 then
@@ -871,7 +867,7 @@ begin
                                               DynCtrlFont.ControlFont, Caption+'X');
 
   t := LabelControl.Top;
-  l := LabelControl.Left + LabelControl.Width + PPIScale(4);
+  l := LabelControl.Left + LabelControl.Width + WinControlPPIScale(4);
 
   if Height > 0 then
     h := Height
@@ -898,25 +894,25 @@ procedure TJvBasePanelEditParameter.ArrangeLabelAndWinControlOnPanelGroupBox;
 var
   l, t, w, h: Integer;
 begin
-  t := PPIScale(16);
-  l := PPIScale(5);
+  t := WinControlPPIScale(16);
+  l := WinControlPPIScale(5);
 
   if Height > 0 then
-    h := Height - PPIScale(20)
+    h := Height - WinControlPPIScale(20)
   else
     h := fOrgWinControlHeight;
 
   if EditWidth > 0 then
     w := EditWidth
   else if Width > 0 then
-    w := Width - PPIScale(9)
+    w := Width - WinControlPPIScale(9)
   else
     w := 0;
 
   ArrangeWinControlsonPanel(l, t, w, h);
 
-  FrameControl.Height := h + PPIScale(20);
-  FrameControl.Width := w + PPIScale(9);
+  FrameControl.Height := h + WinControlPPIScale(20);
+  FrameControl.Width := w + WinControlPPIScale(9);
 end;
 
 procedure TJvBasePanelEditParameter.ArrangeLabelAndWinControlOnPanelNone;
@@ -946,11 +942,11 @@ end;
 
 procedure TJvBasePanelEditParameter.ArrangeWinControlsonPanel(iLeft, iTop:
     Integer; var iWidth: Integer; iHeight: Integer);
-const
-  Space = 2;
 var
   l, w: Integer;
+  Space : Integer;
 begin
+  Space := WinControlPPIScale(2);
   l := iLeft;
   w := 0;
   if Assigned(FBeforeParameterControl) then
@@ -958,8 +954,8 @@ begin
     FBeforeParameterControl.Left := l;
     FBeforeParameterControl.Top := iTop;
     FBeforeParameterControl.Height := iHeight;
-    l := FBeforeParameterControl.Left + FBeforeParameterControl.Width+ PPIScale(Space);
-    w := w + FBeforeParameterControl.Width+ PPIScale(Space);
+    l := FBeforeParameterControl.Left + FBeforeParameterControl.Width+ Space;
+    w := w + FBeforeParameterControl.Width+ Space;
   end;
   WinControl.Left := l;
   WinControl.Top := iTop;
@@ -968,18 +964,18 @@ begin
   begin
     WinControl.Width := iWidth-l+iLeft;
     if Assigned (FAfterParameterControl) then
-      WinControl.Width := WinControl.Width - (FAfterParameterControl.Width + PPIScale(Space));
+      WinControl.Width := WinControl.Width - (FAfterParameterControl.Width + Space);
   end
   else
     WinControl.Width := FOrgWinControlWidth;
   w := w + WinControl.Width;
   if Assigned(FAfterParameterControl) then
   begin
-    l := WinControl.Left + WinControl.Width + PPIScale(Space);
+    l := WinControl.Left + WinControl.Width + Space;
     FAfterParameterControl.Left := l;
     FAfterParameterControl.Top := iTop;
     FAfterParameterControl.Height := iHeight;
-    w := w + FAfterParameterControl.Width+ PPIScale(Space);
+    w := w + FAfterParameterControl.Width+ Space;
   end;
   iWidth := w;
 end;
@@ -1000,16 +996,16 @@ end;
 procedure TJvBasePanelEditParameter.CreateAfterParameterControl(
   AParameterParent: TWinControl);
 var
-  AfterParameter: TJvBaseParameter;
+  Parameter: TJvBaseParameter;
 begin
-  AfterParameter := ParameterList.ParameterByName(AfterParameterName);
-  if Assigned(AfterParameter) and AfterParameter.Visible then
+  Parameter := AfterParameter;
+  if Assigned(Parameter) and Parameter.Visible then
   begin
-    AfterParameter.CreateWinControlOnParent(AParameterParent);
-    if AfterParameter is TJvBasePanelEditParameter then
-      FAfterParameterControl := TJvBasePanelEditParameter(AfterParameter).FrameControl
+    Parameter.CreateWinControlOnParent(AParameterParent);
+    if Parameter is TJvBasePanelEditParameter then
+      FAfterParameterControl := TJvBasePanelEditParameter(Parameter).FrameControl
     else
-      FAfterParameterControl := AfterParameter.WinControl;
+      FAfterParameterControl := Parameter.WinControl;
     FAfterParameterControl.Parent := AParameterParent;
   end
   else
@@ -1018,16 +1014,24 @@ end;
 
 procedure TJvBasePanelEditParameter.CreateBeforeParameterControl(AParameterParent: TWinControl);
 var
-  BeforeParameter: TJvBaseParameter;
+  Parameter: TJvBaseParameter;
+  SaveCaption : String;
 begin
-  BeforeParameter := ParameterList.ParameterByName(BeforeParameterName);
-  if Assigned(BeforeParameter) and BeforeParameter.Visible then
+  Parameter := BeforeParameter;
+  if Assigned(Parameter) and Parameter.Visible then
   begin
-    BeforeParameter.CreateWinControlOnParent(AParameterParent);
-    if BeforeParameter is TJvBasePanelEditParameter then
-      FBeforeParameterControl := TJvBasePanelEditParameter(BeforeParameter).FrameControl
+    SaveCaption := Parameter.Caption;
+    if (Caption = '') and (SaveCaption <> '') and (LabelArrangeMode = lamGroupBox) then
+      Parameter.Caption := '';
+    try
+      Parameter.CreateWinControlOnParent(AParameterParent);
+    finally
+      Parameter.Caption := SaveCaption;
+    end;
+    if Parameter is TJvBasePanelEditParameter then
+      FBeforeParameterControl := TJvBasePanelEditParameter(Parameter).FrameControl
     else
-      FBeforeParameterControl := BeforeParameter.WinControl;
+      FBeforeParameterControl := Parameter.WinControl;
     FBeforeParameterControl.Parent := AParameterParent;
   end
   else
@@ -1037,10 +1041,20 @@ end;
 procedure TJvBasePanelEditParameter.CreateFramePanel(AParameterParent: TWinControl);
 var
   DynBevel: IJvDynControlBevelBorder;
+
+  function GetGroupCaption : string;
+  begin
+    if Caption <> '' then
+      Result := Caption
+    else
+      if Assigned(BeforeParameter) and (BeforeParameter.Caption <> '') then
+        Result := BeforeParameter.Caption;
+  end;
+
 begin
   if LabelArrangeMode = lamGroupBox then
     FFrameControl := DynControlEngine.CreateGroupBoxControl(Self, AParameterParent,
-      GetParameterName + 'GroupBox', Caption)
+      GetParameterName + 'GroupBox', GetGroupCaption)
   else
     FFrameControl := DynControlEngine.CreatePanelControl(Self, AParameterParent,
       GetParameterName + 'Panel', '', alNone);
@@ -1075,7 +1089,7 @@ begin
     IDynAutoSize.ControlSetAutosize(False);
   end
   else
-    LabelControl.Height := PPIScale(16);
+    LabelControl.Height := WinControlPPIScale(16);
 
 end;
 
@@ -1089,6 +1103,16 @@ begin
   fOrgWinControlHeight := WinControl.Height;
   fOrgWinControlWidth := WinControl.Width;
   ArrangeLabelAndWinControlOnPanel;
+end;
+
+function TJvBasePanelEditParameter.GetBeforeParameter: TJvBaseParameter;
+begin
+  Result := ParameterList.ParameterByName(BeforeParameterName);
+end;
+
+function TJvBasePanelEditParameter.GetAfterParameter: TJvBaseParameter;
+begin
+  Result := ParameterList.ParameterByName(AfterParameterName);
 end;
 
 function TJvBasePanelEditParameter.GetLabelWidth: Integer;
@@ -1261,10 +1285,10 @@ constructor TJvArrangeParameter.Create(AParameterList: TJvParameterList);
 begin
   inherited Create(AParameterList);
   FArrangeSettings := TJvArrangeSettings.Create(Self);
-  FArrangeSettings.BorderLeft := PPIScale(2);
-  FArrangeSettings.BorderTop := PPIScale(2);
-  FArrangeSettings.DistanceVertical := PPIScale(2);
-  FArrangeSettings.DistanceHorizontal := PPIScale(2);
+  FArrangeSettings.BorderLeft := WinControlPPIScale(2);
+  FArrangeSettings.BorderTop := WinControlPPIScale(2);
+  FArrangeSettings.DistanceVertical := WinControlPPIScale(2);
+  FArrangeSettings.DistanceHorizontal := WinControlPPIScale(2);
   FArrangeSettings.AutoArrange := True;
 end;
 
@@ -1404,9 +1428,9 @@ end;
 procedure TJvGroupBoxParameter.ReArrangeGroupbox(Sender: TObject; nLeft, nTop, nWidth, nHeight: Integer);
 begin
   if ArrangeSettings.AutoSize in [asWidth, asBoth] then
-    WinControl.Width := nWidth + PPIScale(5);
+    WinControl.Width := nWidth + WinControlPPIScale(5);
   if ArrangeSettings.AutoSize in [asHeight, asBoth] then
-    WinControl.Height := nHeight + PPIScale(22);
+    WinControl.Height := nHeight + WinControlPPIScale(22);
 end;
 
 procedure TJvGroupBoxParameter.SetWinControlProperties;
@@ -1533,10 +1557,15 @@ function TJvListParameter.GetWinControlData: Variant;
 var
   Index: Integer;
 begin
-  if Assigned(JvDynControlData) then
-    Index := JvDynControlData.ControlValue
-  else
-    Index := -1;
+  if not Assigned(JvDynControlData) then
+  begin
+    if VariantAsItemIndex then
+      Result := -1
+    else
+      Result := varNull;
+    exit;
+  end;
+  Index := JvDynControlData.ControlValue;
   if VariantAsItemIndex then
     Result := Index
   else if (Index >= 0) and (Index < ItemList.Count) then
@@ -2687,11 +2716,11 @@ begin
   if Assigned(Sender) and (Sender is TWinControl) then
   begin
     if (ArrangeSettings.AutoSize in [asWidth, asBoth])
-      and (TWinControl(Sender).Width <> nWidth + PPIScale(5)) then
-      TWinControl(Sender).Width := nWidth + PPIScale(5);
+      and (TWinControl(Sender).Width <> nWidth + WinControlPPIScale(5)) then
+      TWinControl(Sender).Width := nWidth + WinControlPPIScale(5);
     if (ArrangeSettings.AutoSize in [asHeight, asBoth])
-      and (TWinControl(Sender).Height <> nHeight + PPIScale(45)) then
-      TWinControl(Sender).Height := nHeight + PPIScale(45);
+      and (TWinControl(Sender).Height <> nHeight + WinControlPPIScale(45)) then
+      TWinControl(Sender).Height := nHeight + WinControlPPIScale(45);
   end;
 end;
 

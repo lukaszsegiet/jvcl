@@ -40,7 +40,7 @@ uses
   {$ENDIF UNITVERSIONING}
   Windows, Messages, Classes, Graphics, Controls, StdCtrls,
   FileCtrl,
-  JvCombobox, JvListBox, JvSearchFiles, JvTypes, JVCLVer;
+  JvCombobox, JvListBox, JvSearchFiles, JvChangeNotify, JvTypes, JVCLVer;
 
 type
   // redclare so user don't have to add JvTypes to uses manually
@@ -249,8 +249,13 @@ type
     FImages: TImageList;
     FForceFileExtensions: Boolean;
     FSearchFiles: TJvSearchFiles;
+    FChangeNotify: TJvCHangeNotify;
+    FAutoUpdate: Boolean;
     procedure SetForceFileExtensions(const Value: Boolean);
     procedure SetDirectory(const Value: string);
+    procedure SetAutoUpdate(Value: Boolean);
+    procedure InitFileChangeNotification;
+    procedure OnFilesChanged(Sender: TObject);
   protected
     procedure DrawItem(Index: Integer; Rect: TRect; State: TOwnerDrawState); override;
     procedure CNDrawItem(var Msg: TWMDrawItem); message CN_DRAWITEM;
@@ -261,6 +266,7 @@ type
     procedure ApplyFilePath(const EditText: string); override;
   published
     property AboutJVCL: TJVCLAboutInfo read FAboutJVCL write FAboutJVCL stored False;
+    property AutoUpdate: Boolean read FAutoUpdate write SetAutoUpdate default false;
     property Directory write SetDirectory stored False;
     property FileName stored False;
     // set this property to True to force the display of filename extensions for all files even if
@@ -399,7 +405,7 @@ type
 const
   UnitVersioning: TUnitVersionInfo = (
     RCSfile: '$URL$';
-    Revision: '$Revision$';
+    Revision: '$Rev$';
     Date: '$Date$';
     LogPath: 'JVCL\run'
   );
@@ -410,6 +416,9 @@ implementation
 uses
   ShellAPI, SysUtils, Math, Forms, ImgList,
   DBT,
+  {$IFDEF HAS_UNIT_SYSTEM_UITYPES}
+  System.UITypes,
+  {$ENDIF HAS_UNIT_SYSTEM_UITYPES}
   JvJCLUtils, JvJVCLUtils, JvConsts;
 
 function GetItemHeight(Font: TFont): Integer;
@@ -1075,9 +1084,10 @@ end;
 
 function AddPathBackslash(const Path: string): string;
 begin
-  Result := Path;
-  if (Length(Path) > 1) and ({$IFDEF COMPILER12_UP}Path[Length(Path)]{$ELSE}AnsiLastChar(Path){$ENDIF COMPILER12_UP} <> '\') then
-    Result := Path + '\';
+  if (Path <> '') then
+    Result := IncludeTrailingPathDelimiter(Path)
+  else
+    Result := Path;
 end;
 
 function DirLevel(const PathName: string): Integer; { counts '\' in path }
@@ -1085,12 +1095,12 @@ var
   P: PChar;
 begin
   Result := 0;
-  P := AnsiStrScan(PChar(PathName), '\');
+  P := AnsiStrScan(PChar(PathName), PathDelim);
   while P <> nil do
   begin
     Inc(Result);
     Inc(P);
-    P := AnsiStrScan(P, '\');
+    P := AnsiStrScan(P, PathDelim);
   end;
 end;
 
@@ -1101,8 +1111,8 @@ begin
     Result := AddPathBackslash(S);
     Exit;
   end;
-  if AnsiLastChar(Path)^ <> '\' then
-    Result := Path + '\' + S
+  if AnsiLastChar(Path)^ <> PathDelim then
+    Result := Path + PathDelim + S
   else
     Result := Path + S;
 end;
@@ -1262,9 +1272,9 @@ begin
 
     if Length(TempPath) > 0 then
     begin
-      if AnsiLastChar(TempPath)^ <> '\' then
+      if AnsiLastChar(TempPath)^ <> PathDelim then
       begin
-        BackSlashPos := AnsiPos('\', TempPath);
+        BackSlashPos := AnsiPos(PathDelim, TempPath);
         while BackSlashPos <> 0 do
         begin
           DirName := Copy(TempPath, 1, BackSlashPos - 1);
@@ -1273,7 +1283,7 @@ begin
           SHGetFileInfo(PChar(tmpFolder), 0, psfi, SizeOf(TSHFileInfo), CFlagsDir);
           Items.AddObject(tmpFolder, TObject(psfi.iIcon));
           FDisplayNames.Add(psfi.szDisplayName);
-          BackSlashPos := AnsiPos('\', TempPath);
+          BackSlashPos := AnsiPos(PathDelim, TempPath);
         end;
       end;
       // add the selected dir:
@@ -1561,6 +1571,7 @@ end;
 destructor TJvFileListBox.Destroy;
 begin
   FImages.Free;
+  FChangeNotify.Free;
   inherited Destroy;
 end;
 
@@ -1652,6 +1663,21 @@ begin
   end;
 end;
 
+procedure TJvFileListBox.SetAutoUpdate(Value: Boolean);
+begin
+  if Value <> FAutoUpdate then
+  begin
+    // Lazy initialization of JvChangeNofity
+    if not FAutoUpdate then
+      InitFileChangeNotification
+    else
+      // If disabled, notification component can be freed
+      FChangeNotify.Free;
+
+    FAutoUpdate := Value;
+  end;
+end;
+
 procedure TJvFileListBox.SetDirectory(const Value: string);
 begin
   // Mantis #5301. We split the Directory and FileName setter to handle them slightly different.
@@ -1660,7 +1686,19 @@ begin
      (AnsiCompareFileName(ExcludeTrailingPathDelimiter(FileName), ExcludeTrailingPathDelimiter(Directory)) <> 0) then
   begin
     inherited ApplyFilePath(Value);
-  end;
+    if Assigned(FChangeNotify) and (FChangeNotify.Notifications.Count > 0) then
+    begin
+      FChangeNotify.Active := False;
+      try
+        FChangeNotify.Notifications[0].Directory := Value;
+      finally
+        FChangeNotify.Active := True;
+      end;
+    end;
+  end
+  else
+    // no directory defined any longer, so free change notification as well.
+    FreeAndNil(FChangeNotify);
 end;
 
 procedure TJvFileListBox.ApplyFilePath(const EditText: string);
@@ -1739,6 +1777,25 @@ begin
     if odFocused in State then
       DrawFocusRect(tmpR);
   end;
+end;
+
+procedure TJvFileListBox.InitFileChangeNotification;
+var
+  Item: TJvChangeItem;
+begin
+  FChangeNotify := TJvChangeNotify.Create(Self);
+  Item := FChangeNotify.Notifications.Add;
+  Item.Directory := Self.Directory;
+  Item.IncludeSubTrees := False;
+  Item.Actions := [caChangeFileName];
+  Item.OnChange := OnFilesChanged;
+
+  FChangeNotify.Active := True;
+end;
+
+procedure TJvFileListBox.OnFilesChanged(Sender: TObject);
+begin
+  Update;
 end;
 
 function TJvDriveList.GetDrives(Index: Integer): string;

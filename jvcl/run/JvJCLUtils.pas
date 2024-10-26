@@ -2294,15 +2294,8 @@ end;
 {$ENDIF UNIX}
 
 function GetComputerName: string;
-var
-  nSize: Cardinal;
 begin
-  nSize := MAX_COMPUTERNAME_LENGTH + 1;
-  SetLength(Result, nSize);
-  if Windows.GetComputerName(PChar(Result), nSize) then
-    SetLength(Result, nSize)
-  else
-    Result := '';
+  Result := GetLocalComputerName;
 end;
 
 function CurrencyToStr(const Cur: Currency): string;
@@ -5749,11 +5742,16 @@ begin
     Result := False;
     Exit;
   until (CInputWord > MaxInputWord) or (CWild > MaxWilds);
+
+  {$IFNDEF COMPILER27_UP}
+  // Delphi 10.4 complains that this code is useless and if one looks at the
+  // lines just above the until statement, it makes a lot of sense...
   { no completed evaluation }
   if CInputWord <= MaxInputWord then
     Result := False;
   if (CWild <= MaxWilds) and (Wilds[MaxWilds] <> '*') then
     Result := False;
+  {$ENDIF ~COMPILER27_UP}
 end;
 
 function XorString(const Key, Src: ShortString): ShortString;
@@ -7062,7 +7060,7 @@ begin
   if Str = '' then
     Exit; { hows this for a nice optimization?  WPostma. }
 
-  { Locale Handling logic October 2008 supercedes former StrToFloatUS functionality. }
+  { Locale Handling logic October 2008 supersedes former StrToFloatUS functionality. }
   {$IFDEF RTL150_UP}
   LocalFormatSettings.ThousandSeparator := GetLocaleChar(LOCALE_USER_DEFAULT, LOCALE_STHOUSAND, '.');
   LocalFormatSettings.DecimalSeparator := GetLocaleChar(LOCALE_USER_DEFAULT, LOCALE_SDECIMAL, '.');
@@ -7314,7 +7312,7 @@ begin
       Inc(liAlpha)
     else
     begin
-      // no wierd punctuation in dates!
+      // no weird punctuation in dates!
       lbDisqualify := True;
       Break;
     end;

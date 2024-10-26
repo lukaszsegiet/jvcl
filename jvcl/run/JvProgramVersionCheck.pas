@@ -188,7 +188,7 @@ type
     function GetVersionInfoLocationPathList: TStrings;
     procedure SetVersionInfoLocationPathList(Value: TStrings);
     { If the location has a list of possible pathes, this property contains
-    the path where the last valid download has happend}
+    the path where the last valid download has happened}
     property ValidLocationPath: string read FValidLocationPath;
     { List of locations-path where the remote files could be found
     The application loops throuh all path from the top }
@@ -661,12 +661,6 @@ begin
   until (AVersion1 = '') and (AVersion2 = '');
 end;
 
-//=== { Support function for DPI Aware apps } ================================
-
-function PPIScale(Value: Integer): Integer;
-begin
-  Result := MulDiv(Value, Screen.PixelsPerInch, 96);
-end;
 
 //=== { TJvProgramVersionsStringList } =======================================
 
@@ -1492,6 +1486,7 @@ begin
   ParameterList := TJvParameterList.Create(Self);
   try
     ParameterList.MaxWidth := PPIScale(460);
+    ParameterList.MaxHeight := PPIScale(400);
     ParameterList.Messages.Caption :=
       Format(RsPVCDialogCaption, [CurrentApplicationName]);
     ParameterList.Messages.OkButton := RsPVCDialogExecuteButton;
@@ -1501,7 +1496,7 @@ begin
     Parameter.Caption := Format(RsPVCNewVersionAvailable,
       [GetAllowedRemoteProgramVersionReleaseType, CurrentApplicationName]);
     Parameter.Width := PPIScale(350);
-    Parameter.Height := PPIScale(45);
+    Parameter.Height := PPIScale(35);
     ParameterList.AddParameter(Parameter);
 
     GroupParameter := TJvGroupBoxParameter.Create(ParameterList);
@@ -1522,6 +1517,7 @@ begin
           Parameter.SearchName := SParamNameRadioButton + IntToStr(Ord(I));
           Parameter.Caption := RemoteProgramVersionHistory.CurrentProgramVersion[I].ProgramVersionInfo;
           Parameter.Width := PPIScale(250);
+          Parameter.Height := PPIScale(25);
           Parameter.AsBoolean := GroupParameter.Height <= PPIScale(10);
           ParameterList.AddParameter(Parameter);
 
@@ -1530,11 +1526,10 @@ begin
           Parameter.SearchName := SParamNameVersionButtonInfo + IntToStr(Ord(I));
           Parameter.Caption := RsPVInfoButtonCaption;
           Parameter.Width := PPIScale(80);
+          Parameter.Height := PPIScale(22);
           Parameter.Tag := Ord(I);
           TJvButtonParameter(Parameter).OnClick := VersionInfoButtonClick;
           ParameterList.AddParameter(Parameter);
-
-          GroupParameter.Height := GroupParameter.Height + PPIScale(25);
         end;
     Parameter := TJvBaseParameter(TJvRadioGroupParameter.Create(ParameterList));
     Parameter.SearchName := SParamNameOperation;
@@ -1687,12 +1682,14 @@ var
 begin
   ParameterList := TJvParameterList.Create(Self);
   try
+    ParameterList.MaxWidth := PPIScale(460);
+    ParameterList.MaxHeight := PPIScale(400);
     ParameterList.Messages.Caption := Format(RsPVCWhatNewInS, [CurrentApplicationName]);
     ParameterList.CancelButtonVisible := False;
     Parameter := TJvMemoParameter.Create(ParameterList);
     Parameter.SearchName := SParamNameMemo;
     Parameter.Caption := Format(RsPVCChangesBetween, [AFromVersion, AToVersion]);
-    Parameter.Width := PPIScale(340);
+    Parameter.Width := PPIScale(400);
     Parameter.Height := PPIScale(200);
     Parameter.AsString := RemoteProgramVersionHistory.GetVersionsDescription(AFromVersion, AToVersion);
     Parameter.Scrollbars := ssBoth;

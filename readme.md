@@ -1,5 +1,8 @@
 JEDI Visual Component Library
 =============================
+[![Build details](https://github.com/project-jedi/tools/blob/master/build_results/badges/jvcl.svg)](https://github.com/project-jedi/tools/blob/master/build_results/jvcl.md)
+![](https://tokei.rs/b1/github/project-jedi/jvcl?category=code)
+![](https://tokei.rs/b1/github/project-jedi/jvcl?category=files)
 
 JVCL is a library of over 600 Delphi visual and non-visual Delphi/C++Builder components.
 It supports Delphi/C++Builder 6 and newer.
@@ -19,7 +22,7 @@ to the MPL license.
 Clone with GIT
 --------------
 ```
-> git clone git://github.com/project-jedi/jvcl.git jvcl
+> git clone https://github.com/project-jedi/jvcl.git jvcl
 ```
 
 This will get you the JVCL repository. You also need the JCL <https://github.com/project-jedi/jcl>

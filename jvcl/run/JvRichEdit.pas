@@ -51,6 +51,18 @@ uses
   Forms, Graphics, StdCtrls, Dialogs, RichEdit, Menus, ComCtrls, SyncObjs,
   JvExStdCtrls, JvTypes;
 
+const
+  {$EXTERNALSYM MSFTEDIT_CLASSA}
+  MSFTEDIT_CLASSA       = 'RICHEDIT50A';     { Richedit4.0 Window Class. }
+  {$EXTERNALSYM MSFTEDIT_CLASSW}
+  MSFTEDIT_CLASSW       = 'RICHEDIT50W';     { Richedit4.0 Window Class. }
+  {$EXTERNALSYM MSFTEDIT_CLASS}
+  {$IFDEF SUPPORTS_UNICODE}
+  MSFTEDIT_CLASS = MSFTEDIT_CLASSW;
+  {$ELSE}
+  MSFTEDIT_CLASS = MSFTEDIT_CLASSA;
+  {$ENDIF SUPPORTS_UNICODE}
+
 type
   TJvCustomRichEdit = class;
 
@@ -610,7 +622,6 @@ type
     procedure FindDialogFind(Sender: TObject);
     procedure NeedAdvancedTypography;
     procedure ReplaceDialogReplace(Sender: TObject);
-    procedure SetSelText(const Value: string);
     procedure FindDialogClose(Sender: TObject);
     procedure SetUIActive(Active: Boolean);
     procedure CMBiDiModeChanged(var Msg: TMessage); message CM_BIDIMODECHANGED;
@@ -689,7 +700,6 @@ type
     property WordSelection: Boolean read GetWordSelection write SetWordSelection default True;
     property ScrollBars default ssBoth;
     property TabStop default True;
-    property SelText: string read GetSelText write SetSelText;
     // Zoom: zoom in/out percentage (100=normal) note: no need to set default (100) in constructor.
     property Zoom: Integer read GetZoom write SetZoom default 100;
     property OnSaveClipboard: TRichEditSaveClipboard read FOnSaveClipboard
@@ -783,6 +793,7 @@ type
     procedure SetSelection(StartPos, EndPos: Longint; ScrollCaret: Boolean);
     function GetSelection: TCharRange;
     function GetTextRange(StartPos, EndPos: Longint): string;
+    procedure SetSelText(const Value: string); {$IFDEF RTL350_UP}override;{$ENDIF RTL350_UP}
     // GetTextLenEx is to be used when printing the RichEdit using EM_FORMATRANGE
     // because GetTextLen is unreliable in this case.
     // See Mantis 4782 and http://edn.embarcadero.com/article/26772 for details
@@ -826,6 +837,7 @@ type
     property PageRect: TRect read FPageRect write FPageRect;
     property Paragraph: TJvParaAttributes read FParagraph;
     property SelectionType: TRichSelectionType read GetSelectionType;
+    property SelText: string read GetSelText write SetSelText;
   end;
 
   {$IFDEF RTL230_UP}
@@ -991,7 +1003,7 @@ uses
   {$IFDEF RTL200_UP}
   CommDlg,
   {$ENDIF RTL200_UP}
-  JclAnsiStrings, JclSysInfo,
+  JclAnsiStrings, JclSysInfo, JclFileUtils,
   JvThemes, JvConsts, JvResources, JvFixedEditPopUp;
 
 type
@@ -1338,6 +1350,8 @@ const
 
   RichEdit10ModuleName = 'RICHED32.DLL';
   RichEdit20ModuleName = 'RICHED20.DLL';
+  RichEdit40ModuleName = 'MSFTEDIT.DLL';
+
 
   FT_DOWN = 1;
 
@@ -2820,11 +2834,18 @@ const
   OLEDragDrops: array[Boolean] of DWORD = (ES_NOOLEDRAGDROP, 0);
 begin
   inherited CreateParams(Params);
-  case RichEditVersion of
-    1:
-      CreateSubClass(Params, RICHEDIT_CLASS10A);
+  if RichEditVersion >= 4 then
+    CreateSubClass(Params, MSFTEDIT_CLASS)
   else
-    CreateSubClass(Params, RICHEDIT_CLASS);
+  begin
+    case RichEditVersion of
+      2:
+        CreateSubClass(Params, RICHEDIT_CLASS);
+      1:
+        CreateSubClass(Params, RICHEDIT_CLASS10A);
+    else
+      CreateSubClass(Params, RICHEDIT_CLASS);
+    end;
   end;
   with Params do
   begin
@@ -4393,7 +4414,11 @@ end;
 procedure TJvCustomRichEdit.SetSelText(const Value: string);
 begin
   FLinesUpdating := True;
+  {$IFDEF RTL350_UP}
+  inherited SetSelText(Value);
+  {$ELSE}
   inherited SelText := Value;
+  {$ENDIF RTL350_UP}
   FLinesUpdating := False;
 end;
 
@@ -7709,26 +7734,42 @@ var
 
 procedure InitRichEditDll;
 var
-  FileName: string;
+  FileName, S: string;
   InfoSize, Wnd: DWORD;
   VerBuf: Pointer;
   FI: PVSFixedFileInfo;
   VerSize: DWORD;
+  MinRichEditVersion, MaxRichEditVersion: Integer;
+  VersionInfo: TJclFileVersionInfo;
+  Index: Integer;
 begin
   RichEditVersion := 1;
-  GLibHandle := SafeLoadLibrary(RichEdit20ModuleName);
-  if (GLibHandle > 0) and (GLibHandle < HINSTANCE_ERROR) then
-    GLibHandle := 0;
+  MaxRichEditVersion := -1;
+
+  // RichEdit 4.1 (XP SP1), 6 (Office 2007), 7.5 (Win8), 8.5 (Win10/Win11)
+  GLibHandle := SafeLoadLibrary(RichEdit40ModuleName);
+  if GLibHandle <> 0 then
+    RichEditVersion := 4; // at least version 4
+
   if GLibHandle = 0 then
   begin
+    // RichEdit 2.0 (Win98), 3.0 (Win2000), 3.1 (Win2003)
+    GLibHandle := SafeLoadLibrary(RichEdit20ModuleName);
+    if GLibHandle <> 0 then
+    begin
+      MaxRichEditVersion := 3;
+      RichEditVersion := 2; // at least version 2
+    end;
+  end;
+
+  if GLibHandle = 0 then
+  begin
+    // RichEdit 1.0 (Win95)
+    RichEditVersion := 1; // fall back to version 1
     GLibHandle := SafeLoadLibrary(RichEdit10ModuleName);
-    if (GLibHandle > 0) and (GLibHandle < HINSTANCE_ERROR) then
-      GLibHandle := 0;
   end
   else
   begin
-    RichEditVersion := 2;
-
     FileName := GetModuleName(GLibHandle);
     InfoSize := GetFileVersionInfoSize(PChar(FileName), Wnd);
     if InfoSize <> 0 then
@@ -7736,16 +7777,47 @@ begin
       GetMem(VerBuf, InfoSize);
       try
         if GetFileVersionInfo(PChar(FileName), Wnd, InfoSize, VerBuf) then
+        begin
           if VerQueryValue(VerBuf, '\', Pointer(FI), VerSize) then
           begin
-            if FI.dwFileVersionMS and $FFFF0000 = $00050000 then
+            MinRichEditVersion := RichEditVersion;
+
+            if FI.dwFileVersionMS and $FFFF0000 = $00050000 then // Works for RICHED20.DLL and MSFTEDIT.DLL (WinXP-8.1)
               RichEditVersion := (FI.dwFileVersionMS and $FFFF) div 10
             else
-            if FI.dwFileVersionMS and $FFFF0000 = $000C0000 then
-              RichEditVersion := 6;
-            if RichEditVersion = 0 then
-              RichEditVersion := 2;
+            if FI.dwFileVersionMS and $FFFF0000 = $000C0000 then // MSFTEDIT.DLL deployed with Microsoft Office 2007
+              RichEditVersion := 6
+            //if FI.dwFileVersionMS and $FFFF0000 = $000A0000 then // Works for MSFTEDIT.DLL (Win10/Win11)
+            else if RichEditVersion >= 4 then
+            begin
+              // MSFTEDIT.DLL doesn't contain the actual RichEditVersion in the file or product version
+              // string. So we need to extracting the version number from the FileDescription string.
+              try
+                VersionInfo := TJclFileVersionInfo.Attach(VerBuf, InfoSize);
+                try
+                  Index := Pos('Rich Text Edit Control, v', VersionInfo.FileDescription);
+                  if Index > 0 then
+                  begin
+                    S := Copy(VersionInfo.FileDescription, Index + 25, MaxInt);
+                    Index := Pos('.', S);
+                    if (Index > 1) and TryStrToInt(Copy(S, 1, Index - 1), Index) and (Index > RichEditVersion) then
+                      RichEditVersion := Index;
+                  end;
+                finally
+                  VersionInfo.Free;
+                end;
+              except
+                // Use the minimum RichEditVersion for the loaded DLL
+              end;
+            end;
+
+            // Limit the RichEditVersion by the versions that are supported by the loaded DLL
+            if (MaxRichEditVersion <> -1) and (RichEditVersion > MaxRichEditVersion) then
+              RichEditVersion := MaxRichEditVersion;
+            if RichEditVersion < MinRichEditVersion then
+              RichEditVersion := MinRichEditVersion;
           end;
+        end;
       finally
         FreeMem(VerBuf);
       end;

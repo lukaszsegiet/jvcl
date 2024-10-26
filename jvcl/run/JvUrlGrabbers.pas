@@ -28,7 +28,11 @@ unit JvUrlGrabbers;
 {$I jvcl.inc}
 {$I windowsonly.inc}
 
+{$IFDEF WIN64}
+{$HPPEMIT '#pragma link "wininet.a"'}
+{$ELSE}
 {$HPPEMIT '#pragma link "wininet.lib"'}
+{$ENDIF WIN64}
 
 interface
 
@@ -363,7 +367,7 @@ begin
 end;
 
 // global download callback
-procedure DownloadCallBack(Handle: HINTERNET; Context: DWORD;
+procedure DownloadCallBack(Handle: HINTERNET; Context: DWORD_PTR;
   AStatus: DWORD; Info: Pointer; StatLen: DWORD); stdcall;
 begin
   with TJvCustomUrlGrabberThread(Context) do

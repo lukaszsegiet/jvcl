@@ -41,10 +41,11 @@ uses
   {$IFDEF UNITVERSIONING}
   JclUnitVersioning,
   {$ENDIF UNITVERSIONING}
+  StdCtrls,
   {$IFDEF HAS_UNIT_SYSTEM_UITYPES}
   System.UITypes,
   {$ENDIF HAS_UNIT_SYSTEM_UITYPES}
-  Classes, Controls, StdCtrls, ExtCtrls, ComCtrls, Mask, Forms, Graphics,
+  Classes, Controls, ExtCtrls, ComCtrls, Mask, Forms, Graphics,
   Buttons, Dialogs, FileCtrl, ActnList, ImgList,
   cxLookAndFeels, cxMaskEdit, cxLabel, cxButtons, cxListBox, cxDropDownEdit,
   cxButtonEdit, cxCalendar, cxCheckBox, cxMemo, cxRadioGroup, cxImage, cxTreeView,
@@ -1066,7 +1067,7 @@ function DynControlEngineDevExpCx: TJvDynControlEngineDevExpCx;
 const
   UnitVersioning: TUnitVersionInfo = (
     RCSfile: '$URL$';
-    Revision: '$Revision$';
+    Revision: '$Rev$';
     Date: '$Date$';
     LogPath: 'JVCL\run'
   );
@@ -1638,12 +1639,11 @@ begin
       if FInitialDir <> '' then
         Dir := FInitialDir
       else
-        Dir := '\';
+        Dir := PathDelim;
     end;
     if not DirectoryExists(Dir) then
-      Dir := '\';
+      Dir := PathDelim;
     if BrowseForFolder('', True, Dir, HelpContext) then
-//    if SelectDirectory(Dir, FDialogOptions, HelpContext) then
       ControlSetValue(Dir);
     if CanFocus then
       SetFocus;
